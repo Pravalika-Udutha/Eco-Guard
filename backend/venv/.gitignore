@@ -1,0 +1,21 @@
+# Created by venv; see https://docs.python.org/3/library/venv.html
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Environment secrets
+.env
+backend/flask/.env
+*-key.json
+
+# Databases
+*.db
+
+# Node
+node_modules/
+dist/
+
+# OS
+.DS_Store
