@@ -1,0 +1,19 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Environment secrets
+.env
+backend/flask/.env
+*-key.json
+
+# Databases
+*.db
+
+# Node
+node_modules/
+dist/
+
+# OS
+.DS_Store
