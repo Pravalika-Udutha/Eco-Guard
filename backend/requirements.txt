@@ -8,3 +8,5 @@ requests
 earthengine-api
 shapely 
 psycopg2-binary
+opencv-python
+numpy
