@@ -21,7 +21,7 @@ class Settings(BaseSettings):
 
     database_url: str = Field(
         ...,
-        description="PostgreSQL connection URL, e.g. postgresql://user:pass@localhost:5432/db_name",
+        description="PostgreSQL connection URL, e.g. postgresql://user:pass@localhost:5432/ecoguard",
     )
 
     # Google Earth Engine settings
@@ -38,6 +38,18 @@ class Settings(BaseSettings):
     gee_after_start: str = "2023-01-01"
     gee_after_end: str = "2023-06-01"
     gee_s2_collection: str = "COPERNICUS/S2_SR_HARMONIZED"
+
+    # Alerting / geofencing
+    nearby_alert_buffer_meters: float = 2000
+    alerts_enabled: bool = True
+    alert_cooldown_seconds: int = 300
+
+    # Twilio (optional SMS alerts)
+    twilio_enabled: bool = False
+    twilio_account_sid: str | None = None
+    twilio_auth_token: str | None = None
+    twilio_from_number: str | None = None
+    alert_to_number: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=str(_env_file_path()),

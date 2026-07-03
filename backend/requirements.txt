@@ -6,3 +6,5 @@ pydantic-settings
 python-dotenv
 requests
 earthengine-api
+shapely 
+psycopg2-binary
