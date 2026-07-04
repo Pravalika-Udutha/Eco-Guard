@@ -1,123 +1,114 @@
-# Eco-Guard API Testing Guide
+# Eco-Guard Testing Guide
 
 ## Quick Start
 
 - FastAPI docs: http://127.0.0.1:8000/docs
 - Flask health: http://127.0.0.1:5000/health
-- React dashboard: http://127.0.0.1:5173
-- Streamlit dashboard: http://localhost:8501
+- React site: http://127.0.0.1:5173
 
-## FastAPI: Forest Monitoring Test Scenarios
+## User Flow (via browser — recommended)
 
-### 1. List all Telangana forest regions
+1. Go to http://127.0.0.1:5173 → **Register** → creates an account, auto-logs in
+2. You're redirected to the **Forest Tool** — pick a region, set dates (max 3 days), **Run analysis**
+3. Review the results page, click **Legal** or **Illegal**
+4. Illegal triggers alerts (SMS/email — simulated by default) to that region's contacts
+5. Click **My Alerts** in the top bar — see your own decision history
+6. Click **Water Tool** — same flow for lakes/reservoirs (Hussain Sagar, Osman Sagar, etc.)
+
+## Flask API — manual testing (curl)
+
+All `/auth/*` routes are public. Everything else under the user-facing tool requires a
+**Bearer token** from login. Admin-only oversight routes (`/verifications`, `/contacts/<region>`)
+use the separate static `X-Admin-Token` header instead.
+
+### 1. Register a user
 ```bash
-curl -X GET "http://127.0.0.1:8000/forest/regions"
-```
-
-### 2. Find region for a location
-```bash
-curl -X GET "http://127.0.0.1:8000/forest/regions/location/17.5/78.5"
-```
-
-### 3. Get seasonal NDVI thresholds
-```bash
-curl -X GET "http://127.0.0.1:8000/forest/thresholds"
-```
-
-### 4. Report a detected forest change
-```bash
-curl -X POST "http://127.0.0.1:8000/forest/changes" ^
+curl -X POST "http://127.0.0.1:5000/auth/register" ^
   -H "Content-Type: application/json" ^
-  -d "{\"region_id\": 1, \"latitude\": 17.51, \"longitude\": 78.51, \"ndvi_before\": 0.65, \"ndvi_after\": 0.35, \"area_affected_sq_meters\": 50000, \"change_date\": \"2024-04-03T10:00:00Z\", \"detection_confidence\": 0.85, \"satellite_source\": \"Sentinel-2\"}"
-```
-*(Windows `cmd` needs `^` for line continuation and escaped `"` inside `-d`; adjust for PowerShell/Bash if needed.)*
-
-### 5. Get pending changes for verification
-```bash
-curl -X GET "http://127.0.0.1:8000/forest/changes/pending"
+  -d "{\"username\": \"testuser\", \"password\": \"testpass123\"}"
 ```
 
-### 6. Admin verification — mark ILLEGAL (triggers alerts)
+### 2. Log in (grab the token from the response)
 ```bash
-curl -X POST "http://127.0.0.1:8000/forest/verify" ^
+curl -X POST "http://127.0.0.1:5000/auth/login" ^
   -H "Content-Type: application/json" ^
-  -d "{\"change_id\": 1, \"admin_id\": \"admin_001\", \"admin_name\": \"Test Admin\", \"is_legal\": false, \"change_type\": \"illegal_logging\", \"verification_notes\": \"Clear evidence of unauthorized tree cutting.\", \"alert_channels\": \"SMS,Email\"}"
+  -d "{\"username\": \"testuser\", \"password\": \"testpass123\"}"
 ```
+Response includes `"token": "..."` — use it as `Authorization: Bearer <token>` below.
 
-### 7. Or mark LEGAL (no alerts sent)
+### 3. Confirm the session
 ```bash
-curl -X POST "http://127.0.0.1:8000/forest/verify" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"change_id\": 2, \"admin_id\": \"admin_001\", \"is_legal\": true, \"change_type\": \"approved_clearing\", \"verification_notes\": \"Government-approved.\"}"
+curl "http://127.0.0.1:5000/auth/me" -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
-### 8. List alert recipients for a region
+### 4. Forest: list regions
 ```bash
-curl -X GET "http://127.0.0.1:8000/forest/recipients/1"
+curl "http://127.0.0.1:5000/regions" -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
-### 9. Add a new alert recipient
+### 5. Forest: run NDVI analysis
 ```bash
-curl -X POST "http://127.0.0.1:8000/forest/recipients" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"region_id\": 1, \"name\": \"District Collector\", \"organization\": \"District Administration\", \"role\": \"Government Officer\", \"phone\": \"+91-40-23999999\", \"email\": \"dc@example.gov.in\"}"
+curl "http://127.0.0.1:5000/analyze/hyderabad?period1_start=2024-01-01&period1_end=2024-01-03" -H "Authorization: Bearer YOUR_TOKEN"
 ```
+Note the `analysis_id` in the response.
 
-## FastAPI: Danger Zone / Geofencing Test Scenarios
-
-### List danger zones
-```bash
-curl -X GET "http://127.0.0.1:8000/danger-zones"
-```
-
-### Simulate a location update (geofencing + alert check)
-```bash
-curl -X POST "http://127.0.0.1:8000/update-location" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"latitude\": 8.0, \"longitude\": 80.0, \"user_id\": \"tester\"}"
-```
-
-## Flask: NDVI Analysis Test Scenarios
-
-All Flask admin routes require `X-Admin-Token` matching `ADMIN_API_TOKEN` in `backend/flask/.env`.
-
-### List regions
-```bash
-curl "http://127.0.0.1:5000/regions" -H "X-Admin-Token: dev-admin-token"
-```
-
-### Run NDVI analysis for a region
-```bash
-curl "http://127.0.0.1:5000/analyze/hyderabad?period1_start=2024-01-01&period1_end=2024-01-03" -H "X-Admin-Token: dev-admin-token"
-```
-*(Note the `analysis_id` in the response — you'll need it for verify.)*
-
-### Verify as illegal (triggers SMS/email alert dispatch)
+### 6. Forest: verify as illegal (triggers alerts)
 ```bash
 curl -X POST "http://127.0.0.1:5000/verify" ^
   -H "Content-Type: application/json" ^
-  -H "X-Admin-Token: dev-admin-token" ^
+  -H "Authorization: Bearer YOUR_TOKEN" ^
   -d "{\"analysis_id\": \"YOUR_ANALYSIS_ID\", \"decision\": \"illegal\"}"
 ```
 
+### 7. Water: list water bodies
+```bash
+curl "http://127.0.0.1:5000/water-bodies" -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### 8. Water: run NDWI analysis
+```bash
+curl "http://127.0.0.1:5000/analyze-water/hussain-sagar?period1_start=2024-01-01&period1_end=2024-01-03" -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### 9. Water: verify as illegal
+```bash
+curl -X POST "http://127.0.0.1:5000/verify-water" ^
+  -H "Content-Type: application/json" ^
+  -H "Authorization: Bearer YOUR_TOKEN" ^
+  -d "{\"analysis_id\": \"YOUR_ANALYSIS_ID\", \"decision\": \"illegal\"}"
+```
+
+### 10. Your own alert history
+```bash
+curl "http://127.0.0.1:5000/my-alerts" -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### 11. Admin oversight (static token, not user login)
+```bash
+curl "http://127.0.0.1:5000/verifications" -H "X-Admin-Token: dev-admin-token"
+curl "http://127.0.0.1:5000/contacts/hyderabad" -H "X-Admin-Token: dev-admin-token"
+```
+
 ## Data Flow
-Satellite Data (GEE / simulated)
--> Detect Forest Change (NDVI Drop)
--> Save to ForestChange / analysis store (pending)
--> Admin Reviews (React or Streamlit dashboard)
--> Admin Verifies (Legal / Illegal)
--> If ILLEGAL: fetch recipients, send alerts (SMS, Email)
--> If LEGAL: log & archive, no alerts
+Satellite Data (GEE / simulated) — NDVI (forest) or NDWI (water)
+-> /analyze/<region> or /analyze-water/<slug>
+-> User reviews on Results page (React)
+-> POST /verify or /verify-water (legal | illegal)
+-> Logged to analysis_verifications (who, when, domain, decision)
+-> If ILLEGAL: alerts dispatched (SMS via Twilio, Email via SMTP/SendGrid)
+-> User's own decisions visible at GET /my-alerts
 
 ## Troubleshooting
 
-**"Region not found" when querying location**
-- Check coordinates fall within a region's GeoJSON polygon.
-- Use `/docs` (FastAPI) to inspect region boundaries.
+**401 Unauthorized on tool endpoints** — token missing/expired; log in again via `/auth/login`
+and use the fresh token (sessions last 14 days).
 
-**No recipients returned for a region**
-- Ensure recipients exist for that `region_id` and `is_active = true`.
+**"Region not found" / "Water body not found"** — check the slug matches exactly
+(`regions_data.py` / `water_bodies_data.py`), lowercase, hyphenated.
 
-**No SMS received after marking illegal**
-- Check `SIMULATE_SMS` in `backend/flask/.env` — if `true`, alerts are only logged to console, not actually sent.
-- See the "Personal alert number" section in the README for real SMS setup.
+**No SMS received after marking illegal** — check `SIMULATE_SMS` in `backend\flask\.env`; if
+`true`, alerts are only logged to console. See README's Twilio setup notes.
+
+**GEE errors in Flask console** — if `GEE_ENABLED=true`, common issues are missing IAM roles
+(`Service Usage Consumer`, `Earth Engine Resource Writer`) — see README's GEE section. With
+`GEE_ENABLED=false`, analysis always uses deterministic simulation and these errors won't occur.

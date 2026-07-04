@@ -1,12 +1,67 @@
+:root {
+  --bg-page: #F6F8F6;
+  --bg-white: #FFFFFF;
+  --bg-mist: #EDF4EF;
+  --bg-forest: #123524;
+  --bg-forest-light: #1B4A34;
+
+  --green: #1F7A4D;
+  --green-dark: #14532F;
+  --green-tint: #E3F5EC;
+  --yellow: #F2C94C;
+  --yellow-tint: #FDF3D9;
+  --blue: #4FA8D8;
+  --blue-tint: #E4F3FA;
+  --red: #D9534F;
+  --red-tint: #FBEAE9;
+
+  --text-primary: #132118;
+  --text-secondary: #4B5D53;
+  --text-muted: #8A9990;
+  --border: #E2E9E4;
+  --border-strong: #CBD8CF;
+
+  --font-display: "Plus Jakarta Sans", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --shadow-card: 0 2px 10px rgba(18, 53, 36, 0.06), 0 1px 2px rgba(18, 53, 36, 0.04);
+  --shadow-card-hover: 0 8px 24px rgba(18, 53, 36, 0.1);
+}
+
 * {
   box-sizing: border-box;
 }
+
 html,
 body,
 #root {
   height: 100%;
   margin: 0;
-  font-family: "Segoe UI", system-ui, sans-serif;
-  background: #0d1f24;
-  color: #e8f4f4;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg-page);
+  color: var(--text-primary);
+}
+
+::selection {
+  background: var(--yellow);
+  color: var(--green-dark);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-page);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
 }

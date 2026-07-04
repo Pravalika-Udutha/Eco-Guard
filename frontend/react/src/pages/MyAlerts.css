@@ -1,0 +1,125 @@
+.alerts-page {
+  min-height: 100vh;
+  background: var(--bg-page);
+}
+
+.alerts-content {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem;
+}
+
+.alerts-content h1 {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin: 0 0 0.4rem;
+}
+
+.alerts-sub {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin: 0 0 1.75rem;
+}
+
+.alerts-loading,
+.alerts-error {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.alerts-error {
+  color: var(--red);
+  background: var(--red-tint);
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius-sm);
+}
+
+.alerts-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--bg-white);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 3rem 1.5rem;
+}
+
+.alerts-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--green);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: 999px;
+  margin-top: 0.5rem;
+}
+
+.alerts-table-wrap {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.alerts-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.alerts-table th {
+  text-align: left;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 0.85rem 1rem;
+  background: var(--bg-mist);
+  border-bottom: 1px solid var(--border);
+}
+
+.alerts-table td {
+  padding: 0.8rem 1rem;
+  font-size: 0.86rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.alerts-table tr:last-child td {
+  border-bottom: none;
+}
+
+.mono-cell {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.decision-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.decision-pill.legal {
+  background: var(--green-tint);
+  color: var(--green-dark);
+}
+
+.decision-pill.illegal {
+  background: var(--red-tint);
+  color: var(--red);
+}

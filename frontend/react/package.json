@@ -11,10 +11,12 @@
   "dependencies": {
     "chart.js": "^4.4.6",
     "leaflet": "^1.9.4",
+    "lucide-react": "^1.23.0",
     "react": "^18.3.1",
     "react-chartjs-2": "^5.2.0",
     "react-dom": "^18.3.1",
-    "react-leaflet": "^4.2.1"
+    "react-leaflet": "^4.2.1",
+    "react-router-dom": "^7.18.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
