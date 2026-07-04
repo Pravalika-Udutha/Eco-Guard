@@ -6,6 +6,7 @@ Endpoints:
   GET  /forests/<region>
   GET  /analyze/<region>
   POST /verify
+  GET  /verifications
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ from app.gee_ndvi import run_gee_analysis
 from app.period_placeholder import render_svg
 from app.regions_data import get_region_by_slug, list_regions_summary, point_inside_telangana
 from app.utils_ndvi import derive_period2_following, validate_period_one
+from app.verification_log import list_verifications, record_verification
 
 logger = logging.getLogger(__name__)
 
@@ -120,17 +122,24 @@ def analyze(region: str):
 def verify():
     """
     Admin verification of analysis. Body JSON:
-      { "analysis_id": "<uuid>", "decision": "legal" | "illegal" }
+      { "analysis_id": "<uuid>", "decision": "legal" | "illegal",
+        "admin_id": "required", "admin_name": "optional" }
 
-    Alerts (SMS / email) are sent only for illegal.
+    Alerts (SMS / email) are sent only for illegal. Every decision is logged
+    to analysis_verifications regardless of outcome.
     """
     data = request.get_json(silent=True) or {}
     aid = (data.get("analysis_id") or "").strip()
     decision = (data.get("decision") or "").strip().lower()
+    admin_id = (data.get("admin_id") or "").strip()
+    admin_name = (data.get("admin_name") or "").strip() or None
+
     if not aid:
         return jsonify({"error": "analysis_id required"}), 400
     if decision not in ("legal", "illegal"):
         return jsonify({"error": 'decision must be "legal" or "illegal"'}), 400
+    if not admin_id:
+        return jsonify({"error": "admin_id required"}), 400
 
     rec = get_analysis(aid)
     if not rec:
@@ -139,6 +148,16 @@ def verify():
     rec = dict(rec)
     rec["analysis_id"] = aid
     rec["verification"] = decision
+
+    log_result = record_verification(
+        analysis_id=aid,
+        region_slug=rec.get("region_slug", ""),
+        decision=decision,
+        admin_id=admin_id,
+        admin_name=admin_name,
+        loss_percent=rec.get("loss_percent"),
+        status=rec.get("status"),
+    )
 
     alerts_summary = None
     if decision == "illegal":
@@ -162,10 +181,21 @@ def verify():
             "ok": True,
             "analysis_id": aid,
             "decision": decision,
+            "admin_id": admin_id,
+            "admin_name": admin_name,
             "alerts_sent": decision == "illegal",
             "alerts_summary": alerts_summary,
+            "logged": log_result.get("ok", False),
         }
     )
+
+
+@bp.get("/verifications")
+@require_admin
+def verifications():
+    """Audit trail: who verified what, when. Optional ?region=<slug> filter."""
+    region = request.args.get("region")
+    return jsonify({"verifications": list_verifications(region_slug=region)})
 
 
 @bp.get("/contacts/<region>")
@@ -181,9 +211,6 @@ def contacts(region: str):
 # =============================
 # Compatibility aliases: /api/*
 # =============================
-# The React dev setup typically uses Vite proxy (/api -> Flask :5000),
-# but if VITE_API_URL is misconfigured, the browser may call /api/regions
-# instead of /regions. These aliases prevent 404s by delegating to the existing handlers.
 
 @bp.get("/api/regions")
 def get_regions_api():
@@ -203,6 +230,11 @@ def analyze_api(region: str):
 @bp.post("/api/verify")
 def verify_api():
     return verify()
+
+
+@bp.get("/api/verifications")
+def verifications_api():
+    return verifications()
 
 
 @bp.get("/api/contacts/<region>")

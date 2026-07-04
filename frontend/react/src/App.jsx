@@ -22,8 +22,6 @@ function resolveImageUrl(url) {
   if (!url) return "";
   const u = String(url);
   if (u.startsWith("data:") || u.startsWith("http://") || u.startsWith("https://")) return u;
-  // If backend returns a relative path like "/public/period-preview.svg?...",
-  // route it through the same base we use for API calls (Vite proxy in dev).
   if (u.startsWith("/")) return `${apiBase}${u}`;
   return u;
 }
@@ -97,6 +95,7 @@ export default function App() {
   const [loadingVerify, setLoadingVerify] = useState(false);
   const [err, setErr] = useState("");
   const [verifyMsg, setVerifyMsg] = useState("");
+  const [adminName, setAdminName] = useState(() => localStorage.getItem("ecoguard_admin_name") || "");
   const [periodImgErr, setPeriodImgErr] = useState({ before: false, after: false });
 
   useEffect(() => {
@@ -142,7 +141,6 @@ export default function App() {
     };
   }, [slug]);
 
-  /** Prefer loaded forests payload; else use /regions summary so the map moves as soon as the user picks a region. */
   const mapCenter = useMemo(() => {
     if (forestPayload?.center_lat != null && forestPayload?.center_lon != null) {
       return [forestPayload.center_lat, forestPayload.center_lon];
@@ -178,24 +176,31 @@ export default function App() {
       setErr("Run analysis first.");
       return;
     }
+    if (!adminName.trim()) {
+      setErr("Enter your name/ID before verifying.");
+      return;
+    }
+    localStorage.setItem("ecoguard_admin_name", adminName.trim());
     setLoadingVerify(true);
     setVerifyMsg("");
     try {
       const res = await apiPost("/verify", {
         analysis_id: analysis.analysis_id,
         decision,
+        admin_id: adminName.trim(),
+        admin_name: adminName.trim(),
       });
       if (res.alerts_sent) {
         const sd = res.alerts_summary?.sms_delivery;
         if (sd === "twilio_live") {
-          setVerifyMsg("Marked ILLEGAL — SMS sent via Twilio.");
+          setVerifyMsg(`Marked ILLEGAL by ${res.admin_name} — SMS sent via Twilio.`);
         } else if (sd === "simulated_log_only") {
-          setVerifyMsg("Marked ILLEGAL — SMS console-only (SIMULATE_SMS=true).");
+          setVerifyMsg(`Marked ILLEGAL by ${res.admin_name} — SMS console-only (SIMULATE_SMS=true).`);
         } else {
-          setVerifyMsg("Marked ILLEGAL — SMS skipped (Twilio disabled).");
+          setVerifyMsg(`Marked ILLEGAL by ${res.admin_name} — SMS skipped (Twilio disabled).`);
         }
       } else {
-        setVerifyMsg("Marked LEGAL — no alerts sent.");
+        setVerifyMsg(`Marked LEGAL by ${res.admin_name} — no alerts sent.`);
       }
     } catch (e) {
       setErr(e.message || String(e));
@@ -225,7 +230,8 @@ export default function App() {
   const afterImageUrl = analysis
     ? resolveImageUrl(analysis.period_images?.after_url || afterFallbackUrl)
     : "";
-    return (
+
+  return (
     <div className="layout">
       <aside className="sidebar">
         <h1 className="brand">Eco-Guard Telangana</h1>
@@ -294,6 +300,15 @@ export default function App() {
             Alerts run only if you mark <strong>Illegal</strong> (set <code>SIMULATE_SMS=false</code> for real
             Twilio SMS).
           </p>
+          <label htmlFor="admin-name">Your name / ID (recorded with this decision)</label>
+          <input
+            id="admin-name"
+            type="text"
+            placeholder="e.g. Pravalika"
+            value={adminName}
+            onChange={(e) => setAdminName(e.target.value)}
+            style={{ marginBottom: "0.5rem" }}
+          />
           <div className="btn-row">
             <button
               type="button"
@@ -403,9 +418,7 @@ export default function App() {
                     />
                   ) : (
                     <div className="image-fallback">
-                      {periodImgErr.before
-                        ? "Before image failed to load (blocked URL or network). Simulated run uses inline preview."
-                        : "Before-period image unavailable"}
+                      Before image failed to load (blocked URL or network). Simulated run uses inline preview.
                     </div>
                   )}
                 </div>
@@ -427,9 +440,7 @@ export default function App() {
                     />
                   ) : (
                     <div className="image-fallback">
-                      {periodImgErr.after
-                        ? "After image failed to load. If GEE: thumb URLs expire; use simulated previews or re-run analysis."
-                        : "After-period image unavailable"}
+                      After image failed to load. If GEE: thumb URLs expire; use simulated previews or re-run analysis.
                     </div>
                   )}
                 </div>

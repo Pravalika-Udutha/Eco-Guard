@@ -10,6 +10,7 @@ from flask_cors import CORS
 from app.alerts_service import init_mail
 from app.config import Config
 from app.db_contacts import init_db
+from app.verification_log import init_verification_log
 from app.routes import bp
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,11 @@ def create_app() -> Flask:
         init_db()
     except Exception:
         logger.exception("Contacts DB init failed (continuing)")
+
+    try:
+        init_verification_log()
+    except Exception:
+        logger.exception("Verification log init failed (continuing)")
 
     app.register_blueprint(bp)
 

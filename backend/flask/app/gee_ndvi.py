@@ -120,15 +120,20 @@ def _s2_median_composite(
     ]
 
     for back_d, fwd_d, cloud_max in strategies:
-        s = (d_start - timedelta(days=back_d)).isoformat()
-        e = (d_end + timedelta(days=fwd_d)).isoformat()
+        s_date = d_start - timedelta(days=back_d)
+        e_date = d_end + timedelta(days=fwd_d)
+        if e_date <= s_date:
+            # Earth Engine rejects zero-width date ranges outright; widen by 1 day.
+            e_date = s_date + timedelta(days=1)
+        s = s_date.isoformat()
+        e = e_date.isoformat()
         coll = ee.ImageCollection(coll_id).filterBounds(aoi).filterDate(s, e).select(["B8", "B4"])
         if cloud_max is not None:
             coll = coll.filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", cloud_max))
         try:
             n = int(coll.size().getInfo() or 0)
         except Exception:
-            logger.exception("S2 size check failed for %s-%s", s, e)
+            logger.debug("S2 size check failed for %s–%s (will try wider window)", s, e)
             n = 0
         if n > 0:
             meta["used_start"] = s
