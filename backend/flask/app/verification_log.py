@@ -1,4 +1,4 @@
-"""PostgreSQL audit log of who verified each analysis as Legal/Illegal."""
+"""PostgreSQL audit log of who verified each analysis as Legal/Illegal (forest or water)."""
 
 from __future__ import annotations
 
@@ -23,16 +23,15 @@ class AnalysisVerification(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     analysis_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    domain: Mapped[str] = mapped_column(String(16), nullable=False, default="forest")
     region_slug: Mapped[str] = mapped_column(String(128), nullable=False)
-    decision: Mapped[str] = mapped_column(String(16), nullable=False)  # "legal" | "illegal"
+    decision: Mapped[str] = mapped_column(String(16), nullable=False)
     admin_id: Mapped[str] = mapped_column(String(128), nullable=False)
     admin_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     loss_percent: Mapped[float | None] = mapped_column(Float, nullable=True)
     status: Mapped[str | None] = mapped_column(String(32), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    verified_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    verified_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 _engine = None
@@ -57,29 +56,17 @@ def init_verification_log() -> None:
 
 
 def record_verification(
-    *,
-    analysis_id: str,
-    region_slug: str,
-    decision: str,
-    admin_id: str,
-    admin_name: str | None = None,
-    loss_percent: float | None = None,
-    status: str | None = None,
-    notes: str | None = None,
+    *, analysis_id: str, region_slug: str, decision: str, admin_id: str,
+    admin_name: str | None = None, loss_percent: float | None = None,
+    status: str | None = None, notes: str | None = None, domain: str = "forest",
 ) -> dict[str, Any]:
-    """Insert one audit row. Never raises to the caller — logs and returns ok=False on failure."""
     try:
         _, SessionLocal = _engine_and_session()
         with SessionLocal() as session:
             row = AnalysisVerification(
-                analysis_id=analysis_id,
-                region_slug=region_slug,
-                decision=decision,
-                admin_id=admin_id,
-                admin_name=admin_name,
-                loss_percent=loss_percent,
-                status=status,
-                notes=notes,
+                analysis_id=analysis_id, domain=domain, region_slug=region_slug, decision=decision,
+                admin_id=admin_id, admin_name=admin_name, loss_percent=loss_percent,
+                status=status, notes=notes,
             )
             session.add(row)
             session.commit()
@@ -90,27 +77,23 @@ def record_verification(
         return {"ok": False}
 
 
-def list_verifications(region_slug: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
-    """Return recent verifications, optionally filtered by region, newest first."""
+def list_verifications(region_slug: str | None = None, domain: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
     try:
         _, SessionLocal = _engine_and_session()
         with SessionLocal() as session:
             stmt = select(AnalysisVerification).order_by(AnalysisVerification.verified_at.desc())
             if region_slug:
                 stmt = stmt.where(AnalysisVerification.region_slug == region_slug)
+            if domain:
+                stmt = stmt.where(AnalysisVerification.domain == domain)
             stmt = stmt.limit(limit)
             rows = session.scalars(stmt).all()
             return [
                 {
-                    "id": r.id,
-                    "analysis_id": r.analysis_id,
-                    "region_slug": r.region_slug,
-                    "decision": r.decision,
-                    "admin_id": r.admin_id,
-                    "admin_name": r.admin_name,
-                    "loss_percent": r.loss_percent,
-                    "status": r.status,
-                    "notes": r.notes,
+                    "id": r.id, "analysis_id": r.analysis_id, "domain": r.domain,
+                    "region_slug": r.region_slug, "decision": r.decision,
+                    "admin_id": r.admin_id, "admin_name": r.admin_name,
+                    "loss_percent": r.loss_percent, "status": r.status, "notes": r.notes,
                     "verified_at": r.verified_at.isoformat() if r.verified_at else None,
                 }
                 for r in rows
